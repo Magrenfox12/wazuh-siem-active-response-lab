@@ -7,7 +7,7 @@ Laboratorio práctico de monitoreo de seguridad (Blue Team / SOC) desplegado con
 ## Arquitectura del Entorno
 
 * **SIEM / Manager:** Wazuh Server (`192.168.100.12`)
-* **Endpoint Monitoreado:** Agente Windows (`magrenfoxx12` / `192.168.100.5`)
+* **Endpoint Monitoreado:** Agente Windows (`magrenfoxx12` / `192.168.100.5`)[cite: 7]
 * **Telemetría:** Microsoft Sysmon integrado con el agente de Wazuh y mapeo MITRE ATT&CK.
 
 ---
@@ -15,32 +15,32 @@ Laboratorio práctico de monitoreo de seguridad (Blue Team / SOC) desplegado con
 ## Pruebas Realizadas y Evidencia
 
 ### 1. File Integrity Monitoring (FIM)
-Configuración del módulo `syscheck` en `ossec.conf` para vigilar cambios en el directorio crítico `c:\monitoreo_cv\confidencial.txt`, generando alertas de nivel 7 ante modificaciones de contenido o atributos.
-* **Regla disparada:** `550` (*Integrity checksum changed*).
+Configuración del módulo `syscheck` en `ossec.conf` para vigilar cambios en el directorio crítico `c:\monitoreo_cv\confidencial.txt`, generando alertas de nivel 7 ante modificaciones de contenido o atributos[cite: 1, 5].
+* **Regla disparada:** `550` (*Integrity checksum changed*)[cite: 1, 5].
 
-![Evidencia FIM](Captura%20de%20pantalla%202026-11-22%20212946.png)
+![Evidencia FIM](Captura%20de%20pantalla%202026-11-22%20212946.png)[cite: 2, 5]
 
 ---
 
 ### 2. Threat Hunting y Telemetría con Sysmon
-Integración de logs de Sysmon para detectar ejecución anómala de intérpretes de comandos y actividad de reconocimiento interno (*Discovery*).
+Integración de logs de Sysmon para detectar ejecución anómala de intérpretes de comandos y actividad de reconocimiento interno (*Discovery*)[cite: 6].
 * **Reglas disparadas:**
-  * `92052` – *Windows command prompt started by an abnormal process*.
-  * `92032` – *Suspicious Windows cmd shell execution*.
-  * `92031` – *Discovery activity executed*.
-  * `92036` – *net.exe binary was started by a Windows cmd shell*.
+  * `92052` – *Windows command prompt started by an abnormal process*[cite: 6, 8].
+  * `92032` – *Suspicious Windows cmd shell execution*[cite: 6, 8].
+  * `92031` – *Discovery activity executed*[cite: 6, 8].
+  * `92036` – *net.exe binary was started by a Windows cmd shell*[cite: 6, 8].
 
-![Alerta Inicial Sysmon](Captura%20de%20pantalla%202026-11-22%20213646.png)
+![Alerta Inicial Sysmon](Captura%20de%20pantalla%202026-11-22%20213646.png)[cite: 2]
 
-![Cadena de Threat Hunting](Captura%20de%20pantalla%202026-11-22%20213307.png)
+![Cadena de Threat Hunting](Captura%20de%20pantalla%202026-11-22%20213307.png)[cite: 2]
 
 ---
 
 ### 3. Active Response (Respuesta Automatizada)
-Configuración de `wazuh-execd` para bloquear automáticamente direcciones IP mediante reglas en el Firewall de Windows (`netsh.exe`) tras detectar intentos repetidos de acceso no autorizado.
-* **Acción verificada:** Ejecución del comando `add` por `wazuh-execd` en `magrenfoxx12` (*Host Blocked*).
+Configuración de `wazuh-execd` para bloquear automáticamente direcciones IP mediante reglas en el Firewall de Windows (`netsh.exe`) tras detectar intentos repetidos de acceso no autorizado[cite: 8].
+* **Acción verificada:** Ejecución del comando `add` por `wazuh-execd` en `magrenfoxx12` (*Host Blocked*)[cite: 7, 8].
 
-![Evidencia Active Response](Captura%20de%20pantalla%202026-11-22%20213217.png)
+![Evidencia Active Response](Captura%20de%20pantalla%202026-11-22%20213217.png)[cite: 2]
 
 ---
 
