@@ -7,7 +7,7 @@ Laboratorio práctico de monitoreo de seguridad (Blue Team / SOC) desplegado con
 ## Arquitectura del Entorno
 
 * **SIEM / Manager:** Wazuh Server (`192.168.100.12`)
-* **Endpoint Monitoreado:** Agente Windows (`magrenfoxx12` / `192.168.100.5`)[cite: 6]
+* **Endpoint Monitoreado:** Agente Windows (`magrenfoxx12` / `192.168.100.5`)
 * **Telemetría:** Microsoft Sysmon integrado con el agente de Wazuh y mapeo MITRE ATT&CK.
 
 ---
@@ -25,22 +25,22 @@ Configuración del módulo `syscheck` en `ossec.conf` para vigilar cambios en el
 ### 2. Threat Hunting y Telemetría con Sysmon
 Integración de logs de Sysmon para detectar ejecución anómala de intérpretes de comandos y actividad de reconocimiento interno (*Discovery*).
 * **Reglas disparadas:**
-  * `92052` – *Windows command prompt started by an abnormal process*[cite: 5, 7].
-  * `92032` – *Suspicious Windows cmd shell execution*[cite: 7].
-  * `92031` – *Discovery activity executed*[cite: 7].
-  * `92036` – *net.exe binary was started by a Windows cmd shell*[cite: 7].
+  * `92052` – *Windows command prompt started by an abnormal process*.
+  * `92032` – *Suspicious Windows cmd shell execution*.
+  * `92031` – *Discovery activity executed*.
+  * `92036` – *net.exe binary was started by a Windows cmd shell*.
 
-![Alerta Inicial Sysmon](Captura%20de%20pantalla%202026-11-22%20213217.png)
+![Alerta Inicial Sysmon](Captura%20de%20pantalla%202026-11-22%20213646.png)
 
 ![Cadena de Threat Hunting](Captura%20de%20pantalla%202026-11-22%20213307.png)
 
 ---
 
 ### 3. Active Response (Respuesta Automatizada)
-Configuración de `wazuh-execd` para bloquear automáticamente direcciones IP mediante reglas en el Firewall de Windows (`netsh.exe`) tras detectar intentos repetidos de acceso no autorizado[cite: 6].
-* **Acción verificada:** Ejecución del comando `add` por `wazuh-execd` en `magrenfoxx12` (*Host Blocked*)[cite: 6].
+Configuración de `wazuh-execd` para bloquear automáticamente direcciones IP mediante reglas en el Firewall de Windows (`netsh.exe`) tras detectar intentos repetidos de acceso no autorizado.
+* **Acción verificada:** Ejecución del comando `add` por `wazuh-execd` en `magrenfoxx12` (*Host Blocked*).
 
-![Evidencia Active Response](Captura%20de%20pantalla%202026-11-22%20213646.png)
+![Evidencia Active Response](Captura%20de%20pantalla%202026-11-22%20213217.png)
 
 ---
 
