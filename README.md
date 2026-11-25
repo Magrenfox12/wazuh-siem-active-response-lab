@@ -6,29 +6,71 @@ Laboratorio práctico de monitoreo de seguridad (Blue Team / SOC) desplegado con
 
 ## Arquitectura del Entorno
 
-* **SIEM / Manager:** Wazuh Server (`192.168.100.12`)
-* **Endpoint Monitoreado:** Agente Windows (`magrenfoxx12` / `192.168.100.5`)
-* **Telemetría:** Microsoft Sysmon integrado con el agente de Wazuh y mapeo MITRE ATT&CK.
+- **SIEM / Manager:** Wazuh Server `v4.14.9 (rc2)` (`192.168.100.12`)
+- **Endpoint Monitoreado:** Agente Windows 11 (`magrenfoxx12` / `192.168.100.5`)
+- **Telemetría:** Microsoft Sysmon `v15.22` integrado con el agente de Wazuh y mapeo MITRE ATT&CK.
 
 ---
 
-## Pruebas Realizadas y Evidencia
+## Configuraciones Clave en `ossec.conf`
+
+Para reproducir las detecciones y la mitigación automatizada en el laboratorio, se aplicaron las siguientes configuraciones:
+
+**1. Monitoreo de Integridad de Archivos (`syscheck` en agente Windows):**
+```xml
+<syscheck>
+  <disabled>no</disabled>
+  <directories check_all="yes" realtime="yes" report_changes="yes">c:\monitoreo_cv\confidencial.txt</directories>
+</syscheck>
+```
+
+**2. Recolección de Telemetría Sysmon (`localfile` en agente Windows):**
+```xml
+<localfile>
+  <location>Microsoft-Windows-Sysmon/Operational</location>
+  <log_format>eventchannel</log_format>
+</localfile>
+```
+
+**3. Respuesta Activa Automatizada (`active-response` en Wazuh Manager):**
+```xml
+<command>
+  <name>win_route-null</name>
+  <executable>route-null.exe</executable>
+  <timeout_allowed>yes</timeout_allowed>
+</command>
+
+<active-response>
+  <command>win_route-null</command>
+  <location>local</location>
+  <level>10</level>
+  <timeout>600</timeout>
+</active-response>
+```
+
+---
+
+## Pruebas Realizadas y Evidencia (Investigación de Incidente)
 
 ### 1. File Integrity Monitoring (FIM)
-Configuración del módulo `syscheck` en `ossec.conf` para vigilar cambios en el directorio crítico `c:\monitoreo_cv\confidencial.txt`, generando alertas de nivel 7 ante modificaciones de contenido o atributos.
-* **Regla disparada:** `550` (*Integrity checksum changed*).
+- **Qué pasó:** Se modificó el contenido del archivo vigilado `c:\monitoreo_cv\confidencial.txt`, disparando una alerta en tiempo real de nivel 7 por alteración de integridad.
+- **Qué hice:** Analicé el evento en el módulo FIM para verificar la marca de tiempo, el usuario responsable y la variación de los hashes (`MD5`, `SHA1`, `SHA256`) antes y después del cambio.
+- **Qué concluí:** El monitoreo en tiempo real con `syscheck` permite detectar manipulaciones no autorizadas de archivos críticos de forma inmediata y conservar evidencia forense exacta.
+- **Regla disparada:** `550` (*Integrity checksum changed*).
 
 ![Evidencia FIM](Captura%20de%20pantalla%202026-11-22%20212946.png)
 
 ---
 
 ### 2. Threat Hunting y Telemetría con Sysmon
-Integración de logs de Sysmon para detectar ejecución anómala de intérpretes de comandos y actividad de reconocimiento interno (*Discovery*).
-* **Reglas disparadas:**
-  * `92052` – *Windows command prompt started by an abnormal process*.
-  * `92032` – *Suspicious Windows cmd shell execution*.
-  * `92031` – *Discovery activity executed*.
-  * `92036` – *net.exe binary was started by a Windows cmd shell*.
+- **Qué pasó:** Tras simular acceso al endpoint, se ejecutaron comandos de reconocimiento interno (`cmd.exe` invocando `net.exe`) para enumerar usuarios y configuración de red, siendo capturados por Sysmon `v15.22`.
+- **Qué hice:** Filtré los eventos en *Threat Hunting* por el agente `magrenfoxx12` y las reglas disparadas, inspeccionando el proceso padre y los argumentos de línea de comandos para confirmar la actividad de *Discovery*.
+- **Qué concluí:** La integración de Sysmon aporta visibilidad detallada sobre técnicas MITRE ATT&CK de reconocimiento interno que los registros nativos de Windows no logran evidenciar por sí solos.
+- **Reglas disparadas:**
+  - `92052` – *Windows command prompt started by an abnormal process*.
+  - `92032` – *Suspicious Windows cmd shell execution*.
+  - `92031` – *Discovery activity executed*.
+  - `92036` – *net.exe binary was started by a Windows cmd shell*.
 
 ![Alerta Inicial Sysmon](Captura%20de%20pantalla%202026-11-22%20213646.png)
 
@@ -37,8 +79,10 @@ Integración de logs de Sysmon para detectar ejecución anómala de intérpretes
 ---
 
 ### 3. Active Response (Respuesta Automatizada)
-Configuración de `wazuh-execd` para bloquear automáticamente direcciones IP mediante reglas en el Firewall de Windows (`netsh.exe`) tras detectar intentos repetidos de acceso no autorizado.
-* **Acción verificada:** Ejecución del comando `add` por `wazuh-execd` en `magrenfoxx12` (*Host Blocked*).
+- **Qué pasó:** Se simularon múltiples intentos repetidos de acceso no autorizado contra el endpoint, superando los umbrales configurados en las reglas de detección de fuerza bruta.
+- **Qué hice:** Verifiqué la ejecución automática de `wazuh-execd` y confirmé que se aplicara la regla de bloqueo en el Firewall de Windows mediante `netsh.exe`.
+- **Qué concluí:** La respuesta automatizada reduce el tiempo de contención a segundos frente a ataques de fuerza bruta; en producción es fundamental calibrar bien los umbrales y definir listas blancas para evitar bloqueos accidentales a usuarios legítimos.
+- **Acción verificada:** Ejecución del comando `add` por `wazuh-execd` en `magrenfoxx12` (*Host Blocked*).
 
 ![Evidencia Active Response](Captura%20de%20pantalla%202026-11-22%20213307.png)
 
@@ -46,6 +90,4 @@ Configuración de `wazuh-execd` para bloquear automáticamente direcciones IP me
 
 ## Notas Técnicas, Retos y Aprendizajes
 
-* **Troubleshooting de red, acceso y API:** Al inicio enfrenté problemas de conectividad y DNS al intentar administrar el servidor vía SSH desde Windows, además de un bloqueo de credenciales en el acceso web que resolví restableciendo las contraseñas desde la terminal del servidor. También solucioné un error de conexión con la API de Wazuh (*API connection / version mismatch*) actualizando y reiniciando los servicios correspondientes desde consola.
-* **Comportamiento del Active Response en pruebas:** Durante la simulación de fuerza bruta pude comprobar la sensibilidad de las reglas de respuesta activa: cualquier error de tecleo repetido disparaba de inmediato el bloqueo automático de la IP, demostrando la importancia de ajustar umbalas y listas blancas en entornos reales.
-* **Visibilidad y triaje de alertas (SOC):** Comprendí que Wazuh va mucho más allá del monitoreo básico, integrando capacidades de Threat Hunting y detección de malware. Aprendí a interpretar y priorizar eventos según su nivel de severidad (baja, media y crítica) para distinguir actividad rutinaria o sospechosa de incidentes críticos que requieren contención inmediata.
+- **Troubleshooting de red, acceso y API:** Al inicio enfrenté problemas de conectividad y DNS al intentar administrar el servidor vía SSH desde Windows, además de un bloqueo de credenciales en el acceso web que resolví restableciendo las contraseñas desde la terminal del servidor. También solucioné un error de conexión con la API de Wazuh (*API connection / version mismatch*) actualizando y reiniciando los servicios correspondientes desde consola.
